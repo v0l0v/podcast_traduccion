@@ -1,0 +1,41 @@
+# ==============================================================================
+# Premium Dockerfile for Agent Cora (WhisperX with AMD ROCm GPU Support)
+# ==============================================================================
+FROM rocm/pytorch:latest
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Instalar dependencias del sistema
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    git \
+    libsndfile1 \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
+
+# Actualizar pip
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Instalar librerías compartidas del pipeline
+RUN python3 -m pip install --no-cache-dir \
+    fastapi==0.110.0 \
+    uvicorn==0.28.0 \
+    pydantic==2.6.4 \
+    pydub==0.25.1 \
+    python-multipart==0.0.9
+
+# Instalar WhisperX desde el repositorio git
+RUN python3 -m pip install --no-cache-dir git+https://github.com/m-bain/whisperX.git
+
+# Copiar scripts y carpetas necesarias al contenedor
+COPY ./scripts /app
+COPY ./audio /audio
+
+EXPOSE 8000
+
+ENV AGENT=cora
+
+CMD ["uvicorn", "cora:app", "--host", "0.0.0.0", "--port", "8000"]

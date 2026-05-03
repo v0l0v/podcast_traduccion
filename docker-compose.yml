@@ -1,0 +1,77 @@
+# ==============================================================================
+# Premium Docker Compose Configuration for Podcast Translation Agents (ROCm)
+# ==============================================================================
+# This configuration leverages the unified Dockerfile to create distinct 
+# specialized microservices for Cora, Siro, and Milo with persistent volumes.
+# ==============================================================================
+
+services:
+  cora_whisperx:
+    build:
+      context: .
+      dockerfile: Dockerfile.cora
+    container_name: cora_whisperx
+    restart: unless-stopped
+    ports:
+      - "8001:8000"
+    environment:
+      - AGENT=cora
+      - HF_TOKEN=${HF_TOKEN}
+    devices:
+      - "/dev/kfd:/dev/kfd"
+      - "/dev/dri:/dev/dri"
+    group_add:
+      - "44"
+      - "993"
+    shm_size: '8G'
+    volumes:
+      - ./scripts:/app
+      - ./audio:/audio
+      - ./modelos:/models
+    networks:
+      - podcast_net
+
+  siro_tts:
+    build:
+      context: .
+      dockerfile: Dockerfile.siro
+    container_name: siro_tts
+    restart: unless-stopped
+    ports:
+      - "8002:8000"
+    environment:
+      - AGENT=siro
+    devices:
+      - "/dev/kfd:/dev/kfd"
+      - "/dev/dri:/dev/dri"
+    group_add:
+      - "44"
+      - "993"
+    shm_size: '8G'
+    volumes:
+      - ./scripts:/app
+      - ./audio:/audio
+      - ./modelos:/models
+    networks:
+      - podcast_net
+
+
+  milo_mixer:
+    build:
+      context: .
+      dockerfile: Dockerfile.milo
+    container_name: milo_mixer
+    restart: unless-stopped
+    ports:
+      - "8003:8000"
+    environment:
+      - AGENT=milo
+    volumes:
+      - ./scripts:/app
+      - ./audio:/audio
+    networks:
+      - podcast_net
+
+networks:
+  podcast_net:
+    driver: bridge

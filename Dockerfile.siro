@@ -1,0 +1,46 @@
+# ==============================================================================
+# Premium Dockerfile for Agent Siro with AMD ROCm GPU Support (Python 3.10)
+# ==============================================================================
+FROM python:3.10-slim
+
+ENV DEBIAN_FRONTEND=noninteractive
+ENV PYTHONUNBUFFERED=1
+
+WORKDIR /app
+
+# Instalar dependencias del sistema y patchelf
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    ffmpeg \
+    git \
+    libsndfile1 \
+    build-essential \
+    espeak-ng \
+    patchelf \
+    && rm -rf /var/lib/apt/lists/*
+
+RUN python3 -m pip install --no-cache-dir --upgrade pip setuptools wheel
+
+# Instalar PyTorch con soporte nativo de ROCm para la GPU AMD
+RUN python3 -m pip install --no-cache-dir torch torchaudio --index-url https://download.pytorch.org/whl/rocm6.0
+
+# Corregir el bit de execstack en las librerías de ROCm dentro de torch para evitar el error de importación
+RUN find /usr/local/lib/python3.10/site-packages/torch/lib/ \( -name "libhiprtc.so" -o -name "libamdhip64.so" \) -exec patchelf --clear-execstack {} \; || true
+
+# Instalar Coqui TTS y dependencias del Agente Siro, forzando versiones compatibles
+RUN python3 -m pip install --no-cache-dir \
+    fastapi==0.110.0 \
+    uvicorn==0.28.0 \
+    pydantic==2.6.4 \
+    pydub==0.25.1 \
+    python-multipart==0.0.9 \
+    setuptools==69.5.1 \
+    transformers==4.39.3 \
+    TTS
+
+COPY ./scripts /app
+COPY ./audio /audio
+
+EXPOSE 8000
+ENV AGENT=siro
+
+CMD ["uvicorn", "siro:app", "--host", "0.0.0.0", "--port", "8000"]
